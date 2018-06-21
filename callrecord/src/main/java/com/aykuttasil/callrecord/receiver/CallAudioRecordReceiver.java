@@ -18,21 +18,23 @@ import java.util.Date;
 /**
  * Created by aykutasil on 19.10.2016.
  */
-public class CallRecordReceiver extends PhoneCallReceiver {
+public class CallAudioRecordReceiver extends PhoneCallReceiver {
 
 
-    private static final String TAG = CallRecordReceiver.class.getSimpleName();
+    private static final String TAG = CallAudioRecordReceiver.class.getSimpleName();
+    final int SAMPLE_RATE = 44100;
 
     public static final String ACTION_IN = "android.intent.action.PHONE_STATE";
     public static final String ACTION_OUT = "android.intent.action.NEW_OUTGOING_CALL";
     public static final String EXTRA_PHONE_NUMBER = "android.intent.extra.PHONE_NUMBER";
 
     protected CallRecord callRecord;
-    private static MediaRecorder recorder;
+    private static AdjustAudioRecord recorder;
     private File audiofile;
     private boolean isRecordStarted = false;
+    private AudioRecord audioRecorder;
 
-    public CallRecordReceiver(CallRecord callRecord) {
+    public CallAudioRecordReceiver(CallRecord callRecord) {
         this.callRecord = callRecord;
     }
 
@@ -97,7 +99,9 @@ public class CallRecordReceiver extends PhoneCallReceiver {
                 isRecordStarted = false;
             } else {
                 if (prepareAudioRecorder(context, seed, phoneNumber)) {
-                    recorder.start();
+                    recorder.startRecording();
+                    // TODO: 24/05/2018 record data to file http://codingmaadi.blogspot.cz/2014/01/recordaudio.html
+                    // README https://www.newventuresoftware.com/blog/record-play-and-visualize-raw-audio-data-in-android
                     isRecordStarted = true;
                     onRecordingStarted(context, callRecord, audiofile);
                     Log.i(TAG, "record start");
@@ -190,6 +194,8 @@ public class CallRecordReceiver extends PhoneCallReceiver {
                 }
             }
 
+            audiofile = File.createTempFile(file_name, suffix, sampleDir);
+
             AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
 //get the current volume set
             int deviceCallVol = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
@@ -198,32 +204,13 @@ public class CallRecordReceiver extends PhoneCallReceiver {
             audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL), 0);
             Log.d(TAG, String.format("Device new volume: %d", audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)));
 
-            audiofile = File.createTempFile(file_name, suffix, sampleDir);
+            recorder = new AdjustAudioRecord(
+                    audio_source,
+                    SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT)
+                    .setGain(2);
 
-            recorder = new MediaRecorder();
-            recorder.setAudioSource(audio_source);
-            recorder.setOutputFormat(output_format);
-            recorder.setAudioEncoder(audio_encoder);
-            recorder.setAudioChannels(1);
-            recorder.setOutputFile(audiofile.getAbsolutePath());
-            recorder.setOnErrorListener(new MediaRecorder.OnErrorListener() {
-                @Override
-                public void onError(MediaRecorder mediaRecorder, int i, int i1) {
-
-                }
-            });
-
-            try {
-                recorder.prepare();
-            } catch (IllegalStateException e) {
-                Log.d(TAG, "IllegalStateException preparing MediaRecorder: " + e.getMessage());
-                releaseMediaRecorder();
-                return false;
-            } catch (IOException e) {
-                Log.d(TAG, "IOException preparing MediaRecorder: " + e.getMessage());
-                releaseMediaRecorder();
-                return false;
-            }
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -233,7 +220,6 @@ public class CallRecordReceiver extends PhoneCallReceiver {
 
     private void releaseMediaRecorder() {
         if (recorder != null) {
-            recorder.reset();
             recorder.release();
             recorder = null;
         }

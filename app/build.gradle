@@ -6,7 +6,7 @@ android {
     defaultConfig {
         applicationId "com.aykuttasil.callrecorder"
         minSdkVersion project.minSdk
-        targetSdkVersion project.sdk
+        targetSdkVersion 17
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -20,11 +20,11 @@ android {
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile "com.android.support:appcompat-v7:$supportVersion"
-    testCompile 'junit:junit:4.12'
-    compile project(':callrecord')
+    implementation "com.android.support:appcompat-v7:$supportVersion"
+    testImplementation 'junit:junit:4.12'
+    implementation project(':callrecord')
 }
